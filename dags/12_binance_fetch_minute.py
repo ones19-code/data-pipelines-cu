@@ -3,8 +3,8 @@ Binance Price Fetcher - Minute Level
 Fetch BTCUSDT avg price every minute and save raw data to CSV.
 
 Writes:
-- /tmp/binance/raw/{ds}/price_{HH}_{MM}.csv
-- /tmp/binance/raw/{ds}/daily_raw.csv (append)
+- ~/airflow/data/binance/{ds}/price_{HH}_{MM}.csv
+- ~/airflow/data/binance/{ds}/daily_raw.csv (append)
 """
 
 from datetime import datetime, timedelta, timezone
@@ -16,7 +16,9 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 
 API_URL = "https://api.binance.com/api/v3/avgPrice?symbol=BTCUSDT"
-BASE_DIR = Path("/tmp/binance/raw")
+
+# ✅ Path corrigé pour TON environnement WSL
+BASE_DIR = Path("/home/enovo/airflow/data/binance")
 
 
 def _fetch_binance_price(ds: str, data_interval_start=None, **_):
@@ -45,7 +47,7 @@ def _fetch_binance_price(ds: str, data_interval_start=None, **_):
     output_file = output_dir / f"price_{hour_str}_{minute_str}.csv"
     df.to_csv(output_file, index=False)
 
-    # 2) Append to daily_raw.csv (without reading whole file)
+    # 2) Append to daily_raw.csv
     daily_file = output_dir / "daily_raw.csv"
     write_header = not daily_file.exists()
     df.to_csv(daily_file, mode="a", header=write_header, index=False)
