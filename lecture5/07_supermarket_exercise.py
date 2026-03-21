@@ -1,19 +1,28 @@
 """
 Lecture 5 - Exercise: Supermarket Promotions ETL with FileSensor
 
-Pipeline:
-wait_for_supermarket_1 → process_supermarket → add_to_db
+Based on Chapter 6 "Triggering Workflows" – supermarket data ingestion pattern.
+
+EXERCISE: Complete pipeline that waits for supermarket data (FileSensor),
+processes it, and loads to a database. The add_to_db task is left empty.
+
+Pipeline: wait_for_supermarket_1 → process_supermarket → add_to_db
 """
 
+import airflow.utils.dates
 from airflow import DAG
-from datetime import datetime
 
 try:
     from airflow.sensors.filesystem import FileSensor
 except ImportError:
     from airflow.providers.filesystem.sensors.filesystem import FileSensor
 
-from airflow.operators.python import PythonOperator
+try:
+    from airflow.operators.bash import BashOperator
+    from airflow.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.bash import BashOperator
+    from airflow.operators.python import PythonOperator
 
 DATA_DIR = "/data/supermarket1"
 
@@ -21,6 +30,7 @@ DATA_DIR = "/data/supermarket1"
 def _process_supermarket(**context):
     """
     Read raw data from supermarket, aggregate promotions, save to CSV.
+    execution_date (ds) comes from Airflow context.
     """
     import csv
     from pathlib import Path
@@ -29,14 +39,13 @@ def _process_supermarket(**context):
     output_path = Path(f"{DATA_DIR}/processed/promotions_{ds}.csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Read all data-*.csv files and aggregate
     raw_dir = Path(DATA_DIR)
     data_files = list(raw_dir.glob("data-*.csv"))
-
     if not data_files:
         raise FileNotFoundError(f"No data-*.csv files in {raw_dir}")
 
     promotions = {}
-
     for f in data_files:
         with open(f, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
@@ -47,73 +56,27 @@ def _process_supermarket(**context):
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["product_id", "promotion_count", "date"])
-
         for prod, count in promotions.items():
-            writer.writerow([prod, count, ds])
+            writer.writerow([prod, count, context["ds"]])
 
     print(f"Saved to {output_path}: {len(promotions)} products")
-    return str(output_path)
+    return output_path
 
 
 def _add_to_db(**context):
-    """Load processed CSV into SQLite database."""
-    import csv
-    import sqlite3
-    from pathlib import Path
-
-    ds = context["ds"]
-    csv_path = Path(f"{DATA_DIR}/processed/promotions_{ds}.csv")
-    db_path = Path(f"{DATA_DIR}/supermarket.db")
-
-    if not csv_path.exists():
-        raise FileNotFoundError(f"Processed CSV not found: {csv_path}")
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS promotions (
-            product_id TEXT,
-            promotion_count INTEGER,
-            date TEXT
-        )
-        """
-    )
-
-    inserted = 0
-
-    with open(csv_path, newline="") as f:
-        reader = csv.DictReader(f)
-
-        for row in reader:
-            cursor.execute(
-                """
-                INSERT INTO promotions (product_id, promotion_count, date)
-                VALUES (?, ?, ?)
-                """,
-                (
-                    row["product_id"],
-                    int(row["promotion_count"]),
-                    row["date"],
-                ),
-            )
-            inserted += 1
-
-    conn.commit()
-    conn.close()
-
-    print(f"Loaded {inserted} rows into database: {db_path}")
+    """Add promotions to database. Implement this task."""
+    pass
 
 
 dag = DAG(
     dag_id="lecture5_supermarket_exercise",
-    start_date=datetime(2026, 3, 1),
+    start_date=airflow.utils.dates.days_ago(3),
     schedule="0 16 * * *",
     catchup=False,
     tags=["lecture5", "exercise", "supermarket", "filesensor"],
 )
 
+# Wait for supermarket data (FileSensor checks for _SUCCESS marker)
 wait_for_supermarket_1 = FileSensor(
     task_id="wait_for_supermarket_1",
     filepath=f"{DATA_DIR}/_SUCCESS",

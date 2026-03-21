@@ -1,52 +1,85 @@
+#!/usr/bin/env python3
+"""
+Lecture 6 - Mid-Semester Assignment: Model Testing Script
+
+Tests the trained gold price prediction model.
+Usage:
+  python test_model.py --model models/gold_model.pkl --data data/
+  python test_model.py --model /data/gold_war_pipeline/models/gold_model.pkl
+"""
+
 import argparse
-import joblib
+import pickle
 from pathlib import Path
+
 import pandas as pd
 
 
-def test_model(model_path: Path, data_dir: Path):
-    # Charger modèle
-    model = joblib.load(model_path)
+def load_model(model_path: Path):
+    """Load the saved model and feature names."""
+    with open(model_path, "rb") as f:
+        data = pickle.load(f)
+    return data["model"], data["features"]
 
-    # Charger données
-    df = pd.read_csv(data_dir / "training_data.csv")
 
-    X = df[["sentiment_mean", "news_count"]]
+def test_model(model_path: Path, data_dir: Path) -> dict:
+    """
+    Run model tests: load model, load training data, compute accuracy.
+    Returns dict with accuracy and sample predictions.
+    """
+    model, features = load_model(model_path)
+
+    training_csv = data_dir / "training_data.csv"
+    if not training_csv.exists():
+        raise FileNotFoundError(
+            f"Training data not found: {training_csv}. Run ETL first."
+        )
+
+    df = pd.read_csv(training_csv)
+    X = df[features].fillna(0)
     y = df["target"]
 
     accuracy = model.score(X, y)
     preds = model.predict(X)
-
     sample = df[["date", "close", "target"]].head(10).copy()
     sample["predicted"] = preds[:10]
 
-    return accuracy, sample
+    return {
+        "accuracy": accuracy,
+        "n_samples": len(df),
+        "sample_predictions": sample,
+    }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test model")
-
+    parser = argparse.ArgumentParser(description="Test gold price prediction model")
     parser.add_argument(
         "--model",
         type=Path,
-        default=Path("lecture6/gold_model.pkl"),
+        default=Path("models/gold_model.pkl"),
+        help="Path to saved model .pkl",
     )
-
     parser.add_argument(
         "--data",
         type=Path,
-        default=Path("lecture6/data"),
+        default=Path("/data/gold_war_pipeline"),
+        help="Data directory containing training_data.csv",
     )
-
     args = parser.parse_args()
 
-    accuracy, sample = test_model(args.model, args.data)
+    if not args.model.exists():
+        print(f"ERROR: Model not found: {args.model}")
+        print("Run the ETL pipeline first to train and save the model.")
+        return 1
 
-    print("\n=== Model Test Results ===")
-    print(f"Accuracy: {accuracy:.3f}")
-    print("\nSample predictions:")
-    print(sample.to_string(index=False))
+    result = test_model(args.model, args.data)
+    print(f"\n=== Model Test Results ===")
+    print(f"Accuracy: {result['accuracy']:.3f}")
+    print(f"Samples:  {result['n_samples']}")
+    print(f"\nSample predictions (first 10):")
+    print(result["sample_predictions"].to_string(index=False))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

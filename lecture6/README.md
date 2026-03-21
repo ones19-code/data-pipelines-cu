@@ -1,24 +1,24 @@
-# Mid-Semester Assignment – Gold & War ML Pipeline
+# Lecture 6: Mid-Semester Assignment
+
+## Gold Price & War News ML Pipeline
+
+This assignment combines **ETL**, **sentiment analysis**, and **ML** to predict gold price direction based on war-related news from The New York Times RSS feeds.
 
 ## Overview
-This project builds an ETL + ML pipeline using Apache Airflow to predict gold price movement based on war-related news sentiment.
 
-## Features
-- Gold price data via yfinance (GC=F)
-- War-related news via NYT RSS
-- Sentiment analysis using TextBlob
-- ML classification (up/down)
-- Automated weekly pipeline (Airflow)
+- **Data sources:** Gold price API + [NYT RSS](https://www.nytimes.com/rss) (war-related news)
+- **Date range:** 2024 to today
+- **Task:** Predict if gold price will go up or down based on news sentiment
+- **Schedule:** ETL runs weekly to deploy a new model
+- **Submission:** ETL scripts, model file, sample data, testing script (same format as Lecture 5)
 
-## Schedule
-schedule="@weekly"
+## Quick Start
 
-## Model
-- Features: sentiment_mean, news_count
-- Target: price movement (1 = up, 0 = down)
+1. Install dependencies: `pip install -r requirements.txt`
+2. Run ETL manually or add DAG to Airflow
+3. Run test: `python test_model.py --model models/gold_model.pkl --data data/`
+4. Submit: ETL + model + data + test script via Pull Request
 
-## Accuracy
-~0.58
+## Full Instructions
 
-## Notes
-The DAG was tested using a 10-minute schedule before switching to weekly.
+See **MID_SEMESTER_ASSIGNMENT_README.md** for setup, data formats, and submission checklist.
