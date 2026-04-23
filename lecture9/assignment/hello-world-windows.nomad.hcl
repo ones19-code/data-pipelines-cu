@@ -8,11 +8,10 @@ job "hello-world" {
       driver = "raw_exec"
 
       config {
-        command = "powershell.exe"
+        command = "C:\\Windows\\System32\\cmd.exe"
         args = [
-          "-NoProfile",
-          "-Command",
-          "Write-Output 'Hello, world from Nomad!'"
+          "/c",
+          "echo Hello, world from Nomad!"
         ]
       }
 
